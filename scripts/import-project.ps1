@@ -44,7 +44,7 @@ $Zip = $candidates |
 if (-not $Zip) {
     Write-Host "Project ZIP not found." -ForegroundColor Red
     Write-Host "Download Affiliate-AI-Studio-main-verified.zip into your Downloads folder, then run this command again."
-    exit 1
+    return
 }
 Write-Host "Using project ZIP: $($Zip.FullName)" -ForegroundColor Cyan
 
@@ -116,7 +116,7 @@ try {
         }
         if ($staged.Count -eq 0) {
             Write-Host "No changes to push; the branch is already up to date." -ForegroundColor Yellow
-            exit 0
+            return
         }
 
         git commit -m "Import full Affiliate AI Studio application source"
@@ -138,5 +138,5 @@ try {
 catch {
     Write-Host "IMPORT STOPPED: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "The temporary checkout is retained at: $WorkRoot"
-    exit 1
+    return
 }
