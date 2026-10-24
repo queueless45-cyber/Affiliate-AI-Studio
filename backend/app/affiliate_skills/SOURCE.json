@@ -1,0 +1,8 @@
+{
+  "component": "affiliate-skills-library",
+  "source_repository": "https://github.com/Affitor/affiliate-skills",
+  "source_revision": "f4cb063a0ee83b1b9e5167e396ab46cc9123dadc",
+  "license": "MIT",
+  "import_scope": "skills/** and shared/references/** except branding-specific reference",
+  "purpose": "Reusable guides for the Affiliate AI Studio 53-workflow catalogue"
+}
