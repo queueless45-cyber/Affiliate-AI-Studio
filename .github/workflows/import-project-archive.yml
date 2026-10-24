@@ -1,0 +1,79 @@
+name: Import complete Affiliate AI Studio project
+
+on:
+  push:
+    branches:
+      - affiliate-skills-integration
+    paths:
+      - "upload_payload/READY"
+
+permissions:
+  contents: write
+
+jobs:
+  import-project:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Decode, validate, and extract project archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, glob, hashlib, io, json, os, shutil, zipfile
+          from pathlib import Path, PurePosixPath
+
+          marker = json.loads(Path("upload_payload/READY").read_text(encoding="utf-8"))
+          parts = sorted(glob.glob("upload_payload/part-*.b64"))
+          if len(parts) != marker["parts"]:
+              raise SystemExit(f"Expected {marker['parts']} archive parts, found {len(parts)}")
+          encoded = "".join(Path(p).read_text(encoding="ascii").strip() for p in parts)
+          data = base64.b64decode(encoded, validate=True)
+          if hashlib.sha256(data).hexdigest() != marker["sha256"]:
+              raise SystemExit("Archive SHA-256 mismatch; refusing extraction")
+          archive = io.BytesIO(data)
+          with zipfile.ZipFile(archive) as zf:
+              names = zf.namelist()
+              if not names or any(PurePosixPath(n).is_absolute() or ".." in PurePosixPath(n).parts for n in names):
+                  raise SystemExit("Archive has an unsafe path; refusing extraction")
+              prefix = "Affiliate-AI-Studio-main/"
+              if not any(n.startswith(prefix) for n in names):
+                  raise SystemExit("Expected project root folder missing in ZIP")
+              dest = Path("/tmp/affiliate-project")
+              dest.mkdir(parents=True, exist_ok=True)
+              zf.extractall(dest)
+          root = Path("/tmp/affiliate-project/Affiliate-AI-Studio-main")
+          if not (root / "backend/app/main.py").is_file():
+              raise SystemExit("Backend entry point not found; refusing import")
+          for item in root.iterdir():
+              target = Path(".") / item.name
+              if item.is_dir():
+                  shutil.copytree(item, target, dirs_exist_ok=True)
+              else:
+                  shutil.copy2(item, target)
+          shutil.rmtree("upload_payload")
+          print(f"Extracted validated project archive ({len(names)} ZIP entries)")
+          PY
+
+      - name: Run backend tests before committing
+        run: |
+          python -m pip install -r requirements-dev.txt
+          python -m pytest backend -q
+
+      - name: Commit imported application source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Import full Affiliate AI Studio application source"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
