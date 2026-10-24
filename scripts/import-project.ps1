@@ -70,9 +70,17 @@ try {
         throw "The archive does not contain the expected backend/app/main.py file."
     }
 
-    Get-ChildItem -LiteralPath $SourceRoot -Force | ForEach-Object {
-        $Destination = Join-Path $RepoPath $_.Name
-        Copy-Item -LiteralPath $_.FullName -Destination $Destination -Recurse -Force
+    Get-ChildItem -LiteralPath $SourceRoot -Force -Recurse | ForEach-Object {
+        $Relative = $_.FullName.Substring($SourceRoot.Length).TrimStart([char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar))
+        $Destination = Join-Path $RepoPath $Relative
+        if ($_.PSIsContainer) {
+            New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+        }
+        else {
+            $DestinationFolder = Split-Path -Parent $Destination
+            New-Item -ItemType Directory -Path $DestinationFolder -Force | Out-Null
+            Copy-Item -LiteralPath $_.FullName -Destination $Destination -Force
+        }
     }
 
     # This temporary import workflow is no longer needed once the project is copied locally.
