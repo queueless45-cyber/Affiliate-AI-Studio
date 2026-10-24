@@ -32,8 +32,13 @@ foreach ($root in $SearchRoots) {
         Where-Object { $_.Name -like "Affiliate-AI-Studio-main*.zip" }
 }
 $Zip = $candidates |
-    Sort-Object @{ Expression = { if ($_.Name -eq "Affiliate-AI-Studio-main-verified.zip") { 0 } elseif ($_.Name -eq "Affiliate-AI-Studio-main(6).zip") { 1 } else { 2 } } }, LastWriteTime -Descending |
     Where-Object { Test-ProjectZip $_.FullName } |
+    Sort-Object -Property @{
+        Expression = { if ($_.Name -eq "Affiliate-AI-Studio-main-verified.zip") { 0 } elseif ($_.Name -eq "Affiliate-AI-Studio-main(6).zip") { 1 } else { 2 } }
+    }, @{
+        Expression = { $_.LastWriteTime }
+        Descending = $true
+    } |
     Select-Object -First 1
 
 if (-not $Zip) {
